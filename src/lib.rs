@@ -2,9 +2,11 @@ extern crate alloc;
 extern crate core;
 
 use alloc::borrow::Cow;
-use core::cmp;
+use data_structures::StackEntry;
+use core::{cmp, fmt};
+use std::borrow::Borrow;
 use std::collections::VecDeque;
-use std::fmt::Display;
+use std::fmt::{Display, Pointer};
 
 use bitcoin::consensus::Encodable;
 use bitcoin::hashes::{hash160, ripemd160, sha1, sha256, sha256d, Hash};
@@ -120,18 +122,30 @@ pub struct ExecutionResult {
     pub final_stack: Stack,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Stacks {
+    pub stack:Vec<StackRecord>,
+    pub alt_stack:Vec<StackRecord>,
+}
+#[derive(Debug,Clone, PartialEq, Eq)]
 pub struct ScriptLog {
-    pub pre_op_stack: Vec<Stack>,
+    pub pre_op_stack: Stacks,
     pub curr_op: Option<InstructionRecord>,
-    pub after_op_stack: Vec<Stack>,
+    pub after_op_stack: Option<Stacks>,
     pub step: usize,
     pub error: Option<ExecError>,
 }
+
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InstructionRecord{
 	PushBytes(Vec<u8>),
     /// Some non-push opcode.
     Op(Opcode),
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StackRecord{
+	Num(i64),
+    Str(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -147,19 +161,32 @@ fn convert_ins_to_insrec(ins:&Option<Instruction>)->Option<InstructionRecord>{
 	ins.map({|ins|
 		match  ins {
 			Instruction::PushBytes(q) => {
-				let mut v:Vec<u8>=vec![];
-				v.copy_from_slice(q.as_bytes());
-				InstructionRecord::PushBytes(v)
+				
+				InstructionRecord::PushBytes(q.as_bytes().to_vec())
 			},
-			Instruction::Op(_) => todo!(),
+			Instruction::Op(op) =>InstructionRecord::Op(op),
 		}})
+}
+
+fn convert_stack_to_stack_record(stack:&Stack)->Vec<StackRecord>{
+ stack.0.iter().map(|item|
+        {
+               match item{
+                  StackEntry::Num(i)=>StackRecord::Num(*i),
+                  StackEntry::StrRef(reference) =>StackRecord::Str(hex::encode((**reference).borrow().as_slice())),
+              }
+          }).collect()
+    
 }
 
 macro_rules! logging {
 	($new_log:ident,$self:ident) => {
 		if Logger::is_logging(){
 			$new_log.curr_op = None;
-			$new_log.after_op_stack = vec![$self.stack.clone(),$self.altstack.clone()];
+			$new_log.after_op_stack = Some(Stacks{
+                stack:convert_stack_to_stack_record(&$self.stack),
+                alt_stack:convert_stack_to_stack_record(&$self.altstack),
+            });
 			$new_log.step = $self.opcode_count;
 			$self.logger.save_log($new_log);
 		}
@@ -167,7 +194,10 @@ macro_rules! logging {
 	($new_log:ident,$self:ident,$ins:ident) => {
 		if Logger::is_logging(){
 			$new_log.curr_op = convert_ins_to_insrec($ins);
-			$new_log.after_op_stack = vec![$self.stack.clone(),$self.altstack.clone()];
+			$new_log.after_op_stack = Stacks{
+                stack:$self.stack.clone(),
+                alt_stack:$self.altstack.clone(),
+            };
 			$new_log.step = $self.opcode_count;
 			$self.logger.save_log($new_log);
 		}
@@ -190,7 +220,7 @@ impl Logger {
     }
 	#[inline]
     pub fn is_logging() -> bool {
-        if cfg!(test) {
+        if cfg!(debug_assertions) {
             true
         } else {
             false
@@ -533,12 +563,27 @@ impl Exec {
         }
     }
 
+     ///////////////
+    // Logger //
+    ///////////////
+    /// 
+    pub fn print_log(&self){
+        println!("printing log when exec failed");
+        for item in self.logger.store.iter(){
+            println!("{:#?}",item);
+        }
+       
+    }
+
     /// Returns true when execution is done.
     pub fn exec_next(&mut self) -> Result<(), &ExecutionResult> {
         let mut new_log = ScriptLog {
-            pre_op_stack: vec![self.stack.clone(), self.altstack.clone()],
+            pre_op_stack: Stacks{
+                stack:convert_stack_to_stack_record(self.stack()),
+                alt_stack:convert_stack_to_stack_record(self.altstack()),
+            },
             curr_op: None,
-            after_op_stack: vec![],
+            after_op_stack:None,
             step: 0,
             error: None,
         };
@@ -620,7 +665,7 @@ impl Exec {
         }
 
         self.update_stats();
-		
+		logging!(new_log,self);
         Ok(())
     }
 
