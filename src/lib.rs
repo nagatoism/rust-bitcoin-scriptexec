@@ -2,8 +2,8 @@ extern crate alloc;
 extern crate core;
 
 use alloc::borrow::Cow;
-use data_structures::StackEntry;
 use core::{cmp, fmt};
+use data_structures::StackEntry;
 use std::borrow::Borrow;
 use std::collections::VecDeque;
 use std::fmt::{Display, Pointer};
@@ -123,10 +123,10 @@ pub struct ExecutionResult {
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Stacks {
-    pub stack:Vec<StackRecord>,
-    pub alt_stack:Vec<StackRecord>,
+    pub stack: Vec<StackRecord>,
+    pub alt_stack: Vec<StackRecord>,
 }
-#[derive(Debug,Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScriptLog {
     pub pre_op_stack: Stacks,
     pub curr_op: Option<InstructionRecord>,
@@ -135,16 +135,15 @@ pub struct ScriptLog {
     pub error: Option<ExecError>,
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum InstructionRecord{
-	PushBytes(Vec<u8>),
+pub enum InstructionRecord {
+    PushBytes(Vec<u8>),
     /// Some non-push opcode.
     Op(Opcode),
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum StackRecord{
-	Num(i64),
+pub enum StackRecord {
+    Num(i64),
     Str(String),
 }
 
@@ -157,51 +156,51 @@ pub struct Logger {
 //I cannot not make this macro into a function
 //TODO somebody helps with making it to a function
 
-fn convert_ins_to_insrec(ins:&Option<Instruction>)->Option<InstructionRecord>{
-	ins.map({|ins|
-		match  ins {
-			Instruction::PushBytes(q) => {
-				
-				InstructionRecord::PushBytes(q.as_bytes().to_vec())
-			},
-			Instruction::Op(op) =>InstructionRecord::Op(op),
-		}})
+fn convert_ins_to_insrec(ins: &Option<Instruction>) -> Option<InstructionRecord> {
+    ins.map({
+        |ins| match ins {
+            Instruction::PushBytes(q) => InstructionRecord::PushBytes(q.as_bytes().to_vec()),
+            Instruction::Op(op) => InstructionRecord::Op(op),
+        }
+    })
 }
 
-fn convert_stack_to_stack_record(stack:&Stack)->Vec<StackRecord>{
- stack.0.iter().map(|item|
-        {
-               match item{
-                  StackEntry::Num(i)=>StackRecord::Num(*i),
-                  StackEntry::StrRef(reference) =>StackRecord::Str(hex::encode((**reference).borrow().as_slice())),
-              }
-          }).collect()
-    
+fn convert_stack_to_stack_record(stack: &Stack) -> Vec<StackRecord> {
+    stack
+        .0
+        .iter()
+        .map(|item| match item {
+            StackEntry::Num(i) => StackRecord::Num(*i),
+            StackEntry::StrRef(reference) => {
+                StackRecord::Str(hex::encode((**reference).borrow().as_slice()))
+            }
+        })
+        .collect()
 }
 
 macro_rules! logging {
-	($new_log:ident,$self:ident) => {
-		if Logger::is_logging(){
-			$new_log.curr_op = None;
-			$new_log.after_op_stack = Some(Stacks{
-                stack:convert_stack_to_stack_record(&$self.stack),
-                alt_stack:convert_stack_to_stack_record(&$self.altstack),
+    ($new_log:ident,$self:ident) => {
+        if Logger::is_logging() {
+            $new_log.curr_op = None;
+            $new_log.after_op_stack = Some(Stacks {
+                stack: convert_stack_to_stack_record(&$self.stack),
+                alt_stack: convert_stack_to_stack_record(&$self.altstack),
             });
-			$new_log.step = $self.opcode_count;
-			$self.logger.save_log($new_log);
-		}
-	};
-	($new_log:ident,$self:ident,$ins:ident) => {
-		if Logger::is_logging(){
-			$new_log.curr_op = convert_ins_to_insrec($ins);
-			$new_log.after_op_stack = Stacks{
-                stack:$self.stack.clone(),
-                alt_stack:$self.altstack.clone(),
+            $new_log.step = $self.opcode_count;
+            $self.logger.save_log($new_log);
+        }
+    };
+    ($new_log:ident,$self:ident,$ins:ident) => {
+        if Logger::is_logging() {
+            $new_log.curr_op = convert_ins_to_insrec($ins);
+            $new_log.after_op_stack = Stacks {
+                stack: $self.stack.clone(),
+                alt_stack: $self.altstack.clone(),
             };
-			$new_log.step = $self.opcode_count;
-			$self.logger.save_log($new_log);
-		}
-	};
+            $new_log.step = $self.opcode_count;
+            $self.logger.save_log($new_log);
+        }
+    };
 }
 
 impl Logger {
@@ -218,7 +217,7 @@ impl Logger {
         }
         self.store.push_front(log);
     }
-	#[inline]
+    #[inline]
     pub fn is_logging() -> bool {
         if cfg!(debug_assertions) {
             true
@@ -435,9 +434,9 @@ impl Exec {
             final_stack: self.stack.clone(),
         };
         self.result = Some(res);
-		if Logger::is_logging(){
-			println!("{:?}",self.logger.store.as_slices());
-		}
+        if Logger::is_logging() {
+            println!("{:?}", self.logger.store.as_slices());
+        }
         Err(self.result.as_ref().unwrap())
     }
 
@@ -449,9 +448,9 @@ impl Exec {
             final_stack: self.stack.clone(),
         };
         self.result = Some(res);
-		if Logger::is_logging(){
-			println!("{:?}",self.logger.store.as_slices());
-		}
+        if Logger::is_logging() {
+            println!("{:?}", self.logger.store.as_slices());
+        }
         Err(self.result.as_ref().unwrap())
     }
 
@@ -563,34 +562,32 @@ impl Exec {
         }
     }
 
-     ///////////////
+    ///////////////
     // Logger //
     ///////////////
-    /// 
-    pub fn print_log(&self){
+    ///
+    pub fn print_log(&self) {
         println!("printing log when exec failed");
-        for item in self.logger.store.iter(){
-            println!("{:#?}",item);
+        for item in self.logger.store.iter() {
+            println!("{:#?}", item);
         }
-       
     }
 
     /// Returns true when execution is done.
     pub fn exec_next(&mut self) -> Result<(), &ExecutionResult> {
         let mut new_log = ScriptLog {
-            pre_op_stack: Stacks{
-                stack:convert_stack_to_stack_record(self.stack()),
-                alt_stack:convert_stack_to_stack_record(self.altstack()),
+            pre_op_stack: Stacks {
+                stack: convert_stack_to_stack_record(self.stack()),
+                alt_stack: convert_stack_to_stack_record(self.altstack()),
             },
             curr_op: None,
-            after_op_stack:None,
+            after_op_stack: None,
             step: 0,
             error: None,
         };
 
-
         if let Some(ref res) = self.result {
-			logging!(new_log,self);
+            logging!(new_log, self);
             return Err(res);
         }
 
@@ -600,21 +597,21 @@ impl Exec {
             None => {
                 let res = ExecutionResult::from_final_stack(self.ctx, self.stack.clone());
                 self.result = Some(res);
-				logging!(new_log,self);
+                logging!(new_log, self);
                 return Err(self.result.as_ref().unwrap());
             }
             Some(Err(_)) => unreachable!("we checked the script beforehand"),
         };
 
         let exec = self.cond_stack.all_true();
-		new_log.curr_op=convert_ins_to_insrec(&Some(instruction));
+        new_log.curr_op = convert_ins_to_insrec(&Some(instruction));
         match instruction {
             Instruction::PushBytes(p) => {
                 if p.len() > MAX_SCRIPT_ELEMENT_SIZE {
                     if Logger::is_logging() {
                         println!("{:?}", self.logger.store);
                     }
-					logging!(new_log,self);
+                    logging!(new_log, self);
                     return self.fail(ExecError::PushSize);
                 }
                 if exec {
@@ -629,7 +626,7 @@ impl Exec {
                     if op.to_u8() > OP_PUSHNUM_16.to_u8() {
                         self.opcode_count += 1;
                         if self.opcode_count > MAX_OPS_PER_SCRIPT {
-							logging!(new_log,self);
+                            logging!(new_log, self);
                             return self.fail(ExecError::OpCount);
                         }
                     }
@@ -637,18 +634,16 @@ impl Exec {
 
                 match op {
                     OP_CAT if !self.opt.experimental.op_cat => {
-						logging!(new_log,self);
+                        logging!(new_log, self);
                         return self.failop(ExecError::DisabledOpcode, op);
-						
                     }
                     OP_SUBSTR | OP_LEFT | OP_RIGHT | OP_INVERT | OP_AND | OP_OR | OP_XOR
                     | OP_2MUL | OP_2DIV | OP_MUL | OP_DIV | OP_MOD | OP_LSHIFT | OP_RSHIFT => {
-						logging!(new_log,self);
+                        logging!(new_log, self);
                         return self.failop(ExecError::DisabledOpcode, op);
-						
                     }
                     OP_RESERVED => {
-						logging!(new_log,self);
+                        logging!(new_log, self);
                         return self.failop(ExecError::Debug, op);
                     }
 
@@ -657,7 +652,7 @@ impl Exec {
 
                 if exec || (op.to_u8() >= OP_IF.to_u8() && op.to_u8() <= OP_ENDIF.to_u8()) {
                     if let Err(err) = self.exec_opcode(op) {
-						logging!(new_log,self);
+                        logging!(new_log, self);
                         return self.failop(err, op);
                     }
                 }
@@ -665,7 +660,7 @@ impl Exec {
         }
 
         self.update_stats();
-		logging!(new_log,self);
+        logging!(new_log, self);
         Ok(())
     }
 
