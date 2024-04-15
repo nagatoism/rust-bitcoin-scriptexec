@@ -12,8 +12,9 @@ pub enum StackEntry {
     StrRef(Rc<RefCell<Vec<u8>>>),
 }
 
+
 #[derive(Clone, Eq, Debug, PartialEq)]
-pub struct Stack(Vec<StackEntry>);
+pub struct Stack(pub Vec<StackEntry>);
 
 impl Stack {
     pub fn new() -> Self {
